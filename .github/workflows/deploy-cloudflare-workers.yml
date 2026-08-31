@@ -1,0 +1,39 @@
+name: Deploy EdgeEver to Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build:cloudflare
+        env:
+          EDGE_EVER_DEPLOYMENT_TRIGGER: main_push
+          EDGE_EVER_DEPLOYMENT_METHOD: github_actions
+
+      - name: Deploy
+        run: bun run deploy:worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          EDGE_EVER_D1_DATABASE_ID: ${{ secrets.EDGE_EVER_D1_DATABASE_ID }}
+          EDGE_EVER_D1_DATABASE_NAME: edgeever
+          EDGE_EVER_R2_BUCKET_NAME: edgeever-resources
+          EDGE_EVER_USE_EXISTING_AUTH_SECRET: "true"
