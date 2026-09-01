@@ -336,11 +336,12 @@ jobs:
 
               if [ -n "${VERSION_ID}" ]; then
                 # 瑙﹀彂閮ㄧ讲
+                DEPLOY_BODY="{\"strategy\":\"percentage\",\"versions\":[{\"version_id\":\"${VERSION_ID}\",\"percentage\":100}]}"
                 DEPLOY_RESPONSE=$(curl -s -X POST \
                   "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_SCRIPT_NAME}/deployments" \
                   -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
                   -H "Content-Type: application/json" \
-                  -d "{\"strategy":"percentage","versions\":[{\"version_id\":\"${VERSION_ID}\",\"percentage\":100}]}")
+                  -d "${DEPLOY_BODY}")
 
                 if echo "${DEPLOY_RESPONSE}" | grep -q '"success":true'; then
                   echo "鉁?Successfully triggered Cloudflare deployment via API."
