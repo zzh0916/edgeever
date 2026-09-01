@@ -156,19 +156,19 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
           {
-            echo "### EdgeEver update / EdgeEver 鏇存柊"
+            echo "### EdgeEver update / EdgeEver 更新"
             echo ""
-            echo "| Field / 瀛楁 | Value / 鍊?|"
+            echo "| Field / 字段 | Value / 值 |"
             echo "| --- | --- |"
-            echo "| Channel / 鏇存柊閫氶亾 | \`${UPDATE_CHANNEL}\` |"
-            echo "| Fork mode / Fork 妯″紡 | \`${fork_mode}\` |"
-            echo "| Upstream target / 涓婃父鐩爣 | \`${target_ref}\` (\`${target_commit:0:12}\`, v${target_version}) |"
-            echo "| Fork main before / 鏇存柊鍓?| \`${head_commit:0:12}\` (v${head_version}) |"
-            echo "| Decision / 鍒ゅ畾 | \`${reason}\` / align=\`${align_mode}\` / update=\`${update_required}\` / republish=\`${republish_only}\` |"
+            echo "| Channel / 更新通道 | \`${UPDATE_CHANNEL}\` |"
+            echo "| Fork mode / Fork 模式 | \`${fork_mode}\` |"
+            echo "| Upstream target / 上游目标 | \`${target_ref}\` (\`${target_commit:0:12}\`, v${target_version}) |"
+            echo "| Fork main before / 更新前 | \`${head_commit:0:12}\` (v${head_version}) |"
+            echo "| Decision / 判定 | \`${reason}\` / align=\`${align_mode}\` / update=\`${update_required}\` / republish=\`${republish_only}\` |"
             echo ""
             case "${reason}" in
               already_on_target)
-                echo "**Already on upstream target.** No git update is needed. This is success for a read-only deployment fork 鈥?not a skipped failure."
+                echo "**Already on upstream target.** No git update is needed. This is success for a read-only deployment fork — not a skipped failure."
                 ;;
               content_matches_target)
                 echo "**Application content already matches upstream target** (history tip may differ). No git update is needed for deployment."
@@ -194,18 +194,18 @@ jobs:
             esac
             if [ "${republish_only}" = "true" ]; then
               echo ""
-              echo "**Manual redeploy / 鎵嬪姩閲嶆柊閮ㄧ讲锛?* the Fork is already aligned, so this run will push an empty commit and request a fresh Cloudflare build."
+              echo "**Manual redeploy / 手动重新部署：** the Fork is already aligned, so this run will push an empty commit and request a fresh Cloudflare build."
             fi
             echo ""
             echo "Prefer this workflow over GitHub **Sync fork**. Mirror mode owns the managed product tree while preserving the Fork's local updater layer and \`.github/workflows/**\`."
           } >> "${GITHUB_STEP_SUMMARY}"
 
           if [ "${republish_only}" = "true" ]; then
-            echo "::notice title=Manual redeploy / 鎵嬪姩閲嶆柊閮ㄧ讲::Fork code is already v${target_version}. This run will push an empty commit and request a fresh Cloudflare build."
+            echo "::notice title=Manual redeploy / 手动重新部署::Fork code is already v${target_version}. This run will push an empty commit and request a fresh Cloudflare build."
           elif [ "${update_required}" = "true" ]; then
-            echo "::notice title=EdgeEver update / EdgeEver 鏇存柊::Fork main v${head_version} will be synchronized to v${target_version}, then a Cloudflare build will be requested."
+            echo "::notice title=EdgeEver update / EdgeEver 更新::Fork main v${head_version} will be synchronized to v${target_version}, then a Cloudflare build will be requested."
           else
-            echo "::notice title=Scheduled check / 瀹氭椂妫€鏌?:Fork code is already v${target_version}. No Git push or Cloudflare deployment was requested by this run."
+            echo "::notice title=Scheduled check / 定时检查::Fork code is already v${target_version}. No Git push or Cloudflare deployment was requested by this run."
           fi
 
           echo "channel=${UPDATE_CHANNEL} target=${target_ref}@${target_commit:0:12} (v${target_version}) head=${head_commit:0:12} (v${head_version}) reason=${reason} align=${align_mode} update=${update_required} republish=${republish_only}"
@@ -307,7 +307,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "${DEPLOY_HOOK_URL:-}" ]; then
-            echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL secret 鈥?relying on Cloudflare Git integration for main pushes."
+            echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL secret — relying on Cloudflare Git integration for main pushes."
             echo "Optional: add a Workers/Pages Deploy Hook secret if pushes do not start builds." >> "${GITHUB_STEP_SUMMARY}"
             echo "method=git_push" >> "${GITHUB_OUTPUT}"
             exit 0
@@ -318,7 +318,7 @@ jobs:
           echo "" >> "${GITHUB_STEP_SUMMARY}"
           echo "Triggered optional Cloudflare Deploy Hook after publish." >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Report result / 杈撳嚭缁撴灉
+      - name: Report result / 输出结果
         if: always() && steps.upstream.outcome == 'success'
         env:
           TARGET_REF: ${{ steps.upstream.outputs.target_ref }}
@@ -335,48 +335,48 @@ jobs:
         run: |
           set -euo pipefail
           final_commit="$(git rev-parse HEAD)"
-          git_result="Not requested / 鏈姹?
-          deploy_result="Not requested / 鏈姹?
-          live_result="Not changed by this run / 鏈杩愯鏈敼鍙樼嚎涓婇儴缃?
+          git_result="Not requested / 未请求"
+          deploy_result="Not requested / 未请求"
+          live_result="Not changed by this run / 本次运行未改变线上部署"
           live_status="unchanged"
           notice_level="notice"
-          notice_title="Scheduled check / 瀹氭椂妫€鏌?
+          notice_title="Scheduled check / 定时检查"
           notice_body="Fork code is already v${TARGET_VERSION}. No Git push or Cloudflare deployment was requested."
 
           if [ "${UPDATE_REQUIRED}" = "true" ] || [ "${REPUBLISH_ONLY}" = "true" ]; then
-            live_result="Not verified by this workflow / 鏈伐浣滄祦鏈獙璇?
+            live_result="Not verified by this workflow / 本工作流未验证"
             live_status="not_verified"
             if [ "${PUBLISH_OUTCOME}" != "success" ]; then
-              git_result="Failed (\`${PUBLISH_OUTCOME}\`) / 澶辫触"
-              deploy_result="Not requested because Git publish failed / 鍥?Git 鍙戝竷澶辫触鑰屾湭璇锋眰"
+              git_result="Failed (\`${PUBLISH_OUTCOME}\`) / 失败"
+              deploy_result="Not requested because Git publish failed / 因 Git 发布失败而未请求"
               notice_level="error"
-              notice_title="Git publish failed / Git 鍙戝竷澶辫触"
+              notice_title="Git publish failed / Git 发布失败"
               notice_body="The Fork could not publish v${TARGET_VERSION}; no Cloudflare deployment was requested."
             else
               case "${PUBLISH_MODE}" in
                 empty_commit)
-                  git_result="Redeploy commit pushed / 宸叉帹閫侀噸閮ㄧ讲 commit"
+                  git_result="Redeploy commit pushed / 已推送重部署 commit"
                   ;;
                 *)
-                  git_result="Version update pushed (\`${ALIGN_MODE}\`) / 宸叉帹閫佺増鏈洿鏂?
+                  git_result="Version update pushed (\`${ALIGN_MODE}\`) / 已推送版本更新"
                   ;;
               esac
 
               if [ "${DEPLOY_TRIGGER_OUTCOME}" = "success" ]; then
                 case "${DEPLOY_TRIGGER_METHOD}" in
                   git_push_and_deploy_hook)
-                    deploy_result="Requested by Git push and Deploy Hook / 宸查€氳繃 Git push 鍜?Deploy Hook 璇锋眰"
+                    deploy_result="Requested by Git push and Deploy Hook / 已通过 Git push 和 Deploy Hook 请求"
                     ;;
                   *)
-                    deploy_result="Requested by Git push / 宸查€氳繃 Git push 璇锋眰"
+                    deploy_result="Requested by Git push / 已通过 Git push 请求"
                     ;;
                 esac
-                notice_title="Deployment requested / 宸茶姹傞儴缃?
+                notice_title="Deployment requested / 已请求部署"
                 notice_body="Fork main is ${final_commit:0:12} (v${TARGET_VERSION}). Confirm Cloudflare Deployments builds this commit; the live version is not verified here."
               else
-                deploy_result="Trigger failed (\`${DEPLOY_TRIGGER_OUTCOME}\`) / 瑙﹀彂澶辫触"
+                deploy_result="Trigger failed (\`${DEPLOY_TRIGGER_OUTCOME}\`) / 触发失败"
                 notice_level="error"
-                notice_title="Deployment trigger failed / 閮ㄧ讲瑙﹀彂澶辫触"
+                notice_title="Deployment trigger failed / 部署触发失败"
                 notice_body="Fork main is ${final_commit:0:12} (v${TARGET_VERSION}), but the Cloudflare deployment request failed."
               fi
             fi
@@ -384,17 +384,17 @@ jobs:
 
           {
             echo ""
-            echo "### Result / 缁撴灉"
+            echo "### Result / 结果"
             echo ""
-            echo "| Field / 瀛楁 | Value / 鍊?|"
+            echo "| Field / 字段 | Value / 值 |"
             echo "| --- | --- |"
-            echo "| Target version / 鐩爣鐗堟湰 | \`${TARGET_REF}\` / v${TARGET_VERSION} |"
-            echo "| Final main / 鏈€缁?main | \`${final_commit:0:12}\` |"
-            echo "| Git publish / Git 鍙戝竷 | ${git_result} |"
-            echo "| Deployment trigger / 閮ㄧ讲瑙﹀彂 | ${deploy_result} |"
-            echo "| Live deployment / 绾夸笂閮ㄧ讲 | ${live_result} |"
+            echo "| Target version / 目标版本 | \`${TARGET_REF}\` / v${TARGET_VERSION} |"
+            echo "| Final main / 最终 main | \`${final_commit:0:12}\` |"
+            echo "| Git publish / Git 发布 | ${git_result} |"
+            echo "| Deployment trigger / 部署触发 | ${deploy_result} |"
+            echo "| Live deployment / 线上部署 | ${live_result} |"
             echo ""
-            echo "When a deployment was requested, confirm Cloudflare **Deployments** builds commit \`${final_commit:0:12}\`. / 鑻ュ凡璇锋眰閮ㄧ讲锛岃鍦?Cloudflare **Deployments** 涓‘璁ゆ瀯寤?commit 涓?\`${final_commit:0:12}\`銆?
+            echo "When a deployment was requested, confirm Cloudflare **Deployments** builds commit \`${final_commit:0:12}\`. / 若已请求部署，请在 Cloudflare **Deployments** 中确认构建 commit 为 \`${final_commit:0:12}\`。"
           } >> "${GITHUB_STEP_SUMMARY}"
           echo "::${notice_level} title=${notice_title}::${notice_body}"
           echo "result target=v${TARGET_VERSION} final=${final_commit:0:12} git_publish=${PUBLISH_OUTCOME} publish_mode=${PUBLISH_MODE:-none} deploy_trigger=${DEPLOY_TRIGGER_OUTCOME} deploy_method=${DEPLOY_TRIGGER_METHOD:-none} live=${live_status}"
