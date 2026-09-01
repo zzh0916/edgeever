@@ -338,21 +338,21 @@ jobs:
 
               if echo "${DEPLOY_RESULT}" | grep -q '"success":true'; then
                 echo "鉁?Successfully triggered Cloudflare Worker redeployment (version: ${VERSION_ID})"
-                echo "method=cloudflare_api" >> "${GITHUB_OUTPUT}"
-                echo "" >> "${GITHUB_STEP_SUMMARY}"
-                echo "Triggered Cloudflare Worker redeployment via API (version: ${VERSION_ID})." >> "${GITHUB_STEP_SUMMARY}"
+                echo "method=cloudflare_api" >> "$GITHUB_OUTPUT"
+                echo "" >> "$GITHUB_STEP_SUMMARY"
+                echo "Triggered Cloudflare Worker redeployment via API (version: ${VERSION_ID})." >> "$GITHUB_STEP_SUMMARY"
               else
                 echo "鈿狅笍 Failed to trigger redeployment: ${DEPLOY_RESULT}"
-                echo "method=api_failed" >> "${GITHUB_OUTPUT}"
+                echo "method=api_failed" >> "$GITHUB_OUTPUT"
               fi
             else
               echo "鈿狅笍 Could not extract version ID from Cloudflare API"
-              echo "method=version_not_found" >> "${GITHUB_OUTPUT}"
+              echo "method=version_not_found" >> "$GITHUB_OUTPUT"
             fi
           else
             echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL or CLOUDFLARE_API_TOKEN secret 鈥?relying on Cloudflare Git integration for main pushes."
-            echo "Optional: add a Workers/Pages Deploy Hook secret if pushes do not start builds." >> "${GITHUB_STEP_SUMMARY}"
-            echo "method=git_push" >> "${GITHUB_OUTPUT}"
+            echo "Optional: add a Workers/Pages Deploy Hook secret if pushes do not start builds." >> "$GITHUB_STEP_SUMMARY"
+            echo "method=git_push" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Report result / 杈撳嚭缁撴灉
