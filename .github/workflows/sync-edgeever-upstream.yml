@@ -324,21 +324,40 @@ jobs:
           if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
             echo "No Deploy Hook configured. Triggering Cloudflare Worker redeployment..."
 
-            # 鐩存帴瑙﹀彂 Worker 閲嶆柊閮ㄧ讲锛堣繖浼氫娇鐢ㄦ渶鏂扮殑浠ｇ爜锛?
-            DEPLOY_RESPONSE=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_SCRIPT_NAME}/deployments" \
+            # 鑾峰彇鏈€鏂扮増鏈殑 version_id
+            VERSIONS_RESPONSE=$(curl -s -X GET \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_SCRIPT_NAME}/versions?per_page=1" \
               -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d '{"strategy":"percentage","versions":[{"version_id":"latest","percentage":100}]}')
+              -H "Content-Type: application/json")
 
-            if echo "${DEPLOY_RESPONSE}" | grep -q '"success":true'; then
-              echo "鉁?Successfully triggered Cloudflare Worker redeployment."
-              echo "method=cloudflare_api" >> "${GITHUB_OUTPUT}"
-              echo "" >> "${GITHUB_STEP_SUMMARY}"
-              echo "Triggered Cloudflare Worker redeployment via API." >> "${GITHUB_STEP_SUMMARY}"
+            # 妫€鏌?API 鍝嶅簲
+            if echo "${VERSIONS_RESPONSE}" | grep -q '"success":true'; then
+              VERSION_ID=$(echo "${VERSIONS_RESPONSE}" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+
+              if [ -n "${VERSION_ID}" ]; then
+                # 瑙﹀彂閮ㄧ讲
+                DEPLOY_RESPONSE=$(curl -s -X POST \
+                  "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_SCRIPT_NAME}/deployments" \
+                  -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"strategy\":\"percentage\",\"versions\":[{\"version_id\":\"${VERSION_ID}\",\"percentage\":100}]}")
+
+                if echo "${DEPLOY_RESPONSE}" | grep -q '"success":true'; then
+                  echo "鉁?Successfully triggered Cloudflare Worker redeployment."
+                  echo "method=cloudflare_api" >> "${GITHUB_OUTPUT}"
+                  echo "" >> "${GITHUB_STEP_SUMMARY}"
+                  echo "Triggered Cloudflare Worker redeployment via API (version: ${VERSION_ID})." >> "${GITHUB_STEP_SUMMARY}"
+                else
+                  echo "鈿狅笍 Failed to trigger redeployment via API: ${DEPLOY_RESPONSE}"
+                  echo "method=api_failed" >> "${GITHUB_OUTPUT}"
+                fi
+              else
+                echo "鈿狅笍 Could not extract version ID from Cloudflare API response."
+                echo "method=version_not_found" >> "${GITHUB_OUTPUT}"
+              fi
             else
-              echo "鈿狅笍 Failed to trigger redeployment via API: ${DEPLOY_RESPONSE}"
-              echo "method=api_failed" >> "${GITHUB_OUTPUT}"
+              echo "鈿狅笍 Failed to get versions from Cloudflare API: ${VERSIONS_RESPONSE}"
+              echo "method=api_error" >> "${GITHUB_OUTPUT}"
             fi
           else
             echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL or CLOUDFLARE_API_TOKEN secret 鈥?relying on Cloudflare Git integration for main pushes."
@@ -394,6 +413,9 @@ jobs:
                 case "${DEPLOY_TRIGGER_METHOD}" in
                   git_push_and_deploy_hook)
                     deploy_result="Requested by Git push and Deploy Hook / 宸查€氳繃 Git push 鍜?Deploy Hook 璇锋眰"
+                    ;;
+                  cloudflare_api)
+                    deploy_result="Triggered via Cloudflare API / 宸查€氳繃 Cloudflare API 瑙﹀彂"
                     ;;
                   *)
                     deploy_result="Requested by Git push / 宸查€氳繃 Git push 璇锋眰"
