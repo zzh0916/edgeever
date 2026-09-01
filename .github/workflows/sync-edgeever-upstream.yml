@@ -304,56 +304,19 @@ jobs:
         if: steps.publish.outcome == 'success'
         env:
           DEPLOY_HOOK_URL: ${{ secrets.EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          WORKER_SCRIPT_NAME: edgeever
         run: |
           set -euo pipefail
-
-          # 濡傛灉閰嶇疆浜?Deploy Hook锛屼紭鍏堜娇鐢?
-          if [ -n "${DEPLOY_HOOK_URL:-}" ]; then
-            curl -fsS -X POST "${DEPLOY_HOOK_URL}" >/dev/null
-            echo "Triggered Cloudflare Deploy Hook."
-            echo "method=git_push_and_deploy_hook" >> "${GITHUB_OUTPUT}"
-            echo "" >> "${GITHUB_STEP_SUMMARY}"
-            echo "Triggered optional Cloudflare Deploy Hook after publish." >> "${GITHUB_STEP_SUMMARY}"
+          if [ -z "${DEPLOY_HOOK_URL:-}" ]; then
+            echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL secret 鈥?relying on Cloudflare Git integration for main pushes."
+            echo "Optional: add a Workers/Pages Deploy Hook secret if pushes do not start builds." >> "${GITHUB_STEP_SUMMARY}"
+            echo "method=git_push" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
-
-          # 濡傛灉娌℃湁 Deploy Hook锛屼絾鏈?Cloudflare API Token锛岃Е鍙?Worker 閲嶆柊閮ㄧ讲
-          if [ -n "${CLOUDFLARE_API_TOKEN:-}" ] && [ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
-            echo "No Deploy Hook configured. Triggering Cloudflare Worker redeployment..."
-
-            # 鑾峰彇鏈€鏂扮増鏈?ID
-            VERSION_ID=$(curl -s "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_SCRIPT_NAME}/versions?per_page=1" \
-              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-
-            if [ -n "${VERSION_ID}" ]; then
-              # 瑙﹀彂閮ㄧ讲锛堜娇鐢ㄧ畝鍗曠殑 JSON 鏍煎紡锛?
-              DEPLOY_RESULT=$(curl -s -X POST \
-                "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${WORKER_SCRIPT_NAME}/deployments" \
-                -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "{\"strategy\":\"percentage\",\"versions\":[{\"version_id\":\"${VERSION_ID}\",\"percentage\":100}]}")
-
-              if echo "${DEPLOY_RESULT}" | grep -q '"success":true'; then
-                echo "鉁?Successfully triggered Cloudflare Worker redeployment (version: ${VERSION_ID})"
-                echo "method=cloudflare_api" >> "$GITHUB_OUTPUT"
-                echo "" >> "$GITHUB_STEP_SUMMARY"
-                echo "Triggered Cloudflare Worker redeployment via API (version: ${VERSION_ID})." >> "$GITHUB_STEP_SUMMARY"
-              else
-                echo "鈿狅笍 Failed to trigger redeployment: ${DEPLOY_RESULT}"
-                echo "method=api_failed" >> "$GITHUB_OUTPUT"
-              fi
-            else
-              echo "鈿狅笍 Could not extract version ID from Cloudflare API"
-              echo "method=version_not_found" >> "$GITHUB_OUTPUT"
-            fi
-          else
-            echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL or CLOUDFLARE_API_TOKEN secret 鈥?relying on Cloudflare Git integration for main pushes."
-            echo "Optional: add a Workers/Pages Deploy Hook secret if pushes do not start builds." >> "$GITHUB_STEP_SUMMARY"
-            echo "method=git_push" >> "$GITHUB_OUTPUT"
-          fi
+          curl -fsS -X POST "${DEPLOY_HOOK_URL}" >/dev/null
+          echo "Triggered Cloudflare Deploy Hook."
+          echo "method=git_push_and_deploy_hook" >> "${GITHUB_OUTPUT}"
+          echo "" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Triggered optional Cloudflare Deploy Hook after publish." >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Report result / 杈撳嚭缁撴灉
         if: always() && steps.upstream.outcome == 'success'
@@ -403,9 +366,6 @@ jobs:
                 case "${DEPLOY_TRIGGER_METHOD}" in
                   git_push_and_deploy_hook)
                     deploy_result="Requested by Git push and Deploy Hook / 宸查€氳繃 Git push 鍜?Deploy Hook 璇锋眰"
-                    ;;
-                  cloudflare_api)
-                    deploy_result="Triggered via Cloudflare API / 宸查€氳繃 Cloudflare API 瑙﹀彂"
                     ;;
                   *)
                     deploy_result="Requested by Git push / 宸查€氳繃 Git push 璇锋眰"
