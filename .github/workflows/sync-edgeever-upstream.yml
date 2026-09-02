@@ -306,6 +306,7 @@ jobs:
           DEPLOY_HOOK_URL: ${{ secrets.EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DEPLOY_WORKFLOW: "Deploy EdgeEver to Cloudflare Workers"
+          DEPLOY_WORKFLOW_ID: "346279545"
         run: |
           set -euo pipefail
 
@@ -319,17 +320,23 @@ jobs:
             exit 0
           fi
 
-          # 否则调用 Deploy 工作流（workflow_dispatch）触发部署。
-          # 注意：GITHUB_TOKEN 推送不会触发 on: push 工作流，
-          # 但工作流上下文里用 gh workflow run 调 workflow_dispatch 是可以的。
-          echo "No Deploy Hook configured. Triggering '${DEPLOY_WORKFLOW}' workflow via workflow_dispatch..."
-          if gh workflow run "${DEPLOY_WORKFLOW}" --repo "${GITHUB_REPOSITORY}" --ref main; then
-            echo "✅ Triggered '${DEPLOY_WORKFLOW}' workflow via workflow_dispatch."
+          # 否则调用 Deploy 工作流（workflow_dispatch）触发部署，用 REST API 而非 gh CLI。
+          # 注意：GITHUB_TOKEN 推送不会触发 on: push 工作流，但 workflow_dispatch 不受此限制。
+          echo "No Deploy Hook configured. Triggering deploy workflow ${DEPLOY_WORKFLOW_ID} via workflow_dispatch..."
+          API_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${DEPLOY_WORKFLOW_ID}/dispatches" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            -d '{"ref":"main"}')
+          echo "HTTP status: ${API_RESPONSE}"
+          if [ "${API_RESPONSE}" = "204" ]; then
+            echo "✅ Triggered deploy workflow ${DEPLOY_WORKFLOW_ID} via workflow_dispatch."
             echo "method=workflow_dispatch" >> "${GITHUB_OUTPUT}"
             echo "" >> "${GITHUB_STEP_SUMMARY}"
             echo "Triggered deploy workflow via workflow_dispatch." >> "${GITHUB_STEP_SUMMARY}"
           else
-            echo "⚠️ Failed to trigger deploy workflow."
+            echo "⚠️ Failed to trigger deploy workflow. HTTP status: ${API_RESPONSE}"
             echo "method=workflow_dispatch_failed" >> "${GITHUB_OUTPUT}"
           fi
 
