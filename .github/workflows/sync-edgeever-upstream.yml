@@ -304,19 +304,34 @@ jobs:
         if: steps.publish.outcome == 'success'
         env:
           DEPLOY_HOOK_URL: ${{ secrets.EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOY_WORKFLOW: "Deploy EdgeEver to Cloudflare Workers"
         run: |
           set -euo pipefail
-          if [ -z "${DEPLOY_HOOK_URL:-}" ]; then
-            echo "No EDGE_EVER_CLOUDFLARE_DEPLOY_HOOK_URL secret — relying on Cloudflare Git integration for main pushes."
-            echo "Optional: add a Workers/Pages Deploy Hook secret if pushes do not start builds." >> "${GITHUB_STEP_SUMMARY}"
-            echo "method=git_push" >> "${GITHUB_OUTPUT}"
+
+          # 优先使用 Deploy Hook（如果已配置）
+          if [ -n "${DEPLOY_HOOK_URL:-}" ]; then
+            curl -fsS -X POST "${DEPLOY_HOOK_URL}" >/dev/null
+            echo "Triggered Cloudflare Deploy Hook."
+            echo "method=git_push_and_deploy_hook" >> "${GITHUB_OUTPUT}"
+            echo "" >> "${GITHUB_STEP_SUMMARY}"
+            echo "Triggered Cloudflare Deploy Hook after publish." >> "${GITHUB_STEP_SUMMARY}"
             exit 0
           fi
-          curl -fsS -X POST "${DEPLOY_HOOK_URL}" >/dev/null
-          echo "Triggered Cloudflare Deploy Hook."
-          echo "method=git_push_and_deploy_hook" >> "${GITHUB_OUTPUT}"
-          echo "" >> "${GITHUB_STEP_SUMMARY}"
-          echo "Triggered optional Cloudflare Deploy Hook after publish." >> "${GITHUB_STEP_SUMMARY}"
+
+          # 否则调用 Deploy 工作流（workflow_dispatch）触发部署。
+          # 注意：GITHUB_TOKEN 推送不会触发 on: push 工作流，
+          # 但工作流上下文里用 gh workflow run 调 workflow_dispatch 是可以的。
+          echo "No Deploy Hook configured. Triggering '${DEPLOY_WORKFLOW}' workflow via workflow_dispatch..."
+          if gh workflow run "${DEPLOY_WORKFLOW}" --repo "${GITHUB_REPOSITORY}" --ref main; then
+            echo "✅ Triggered '${DEPLOY_WORKFLOW}' workflow via workflow_dispatch."
+            echo "method=workflow_dispatch" >> "${GITHUB_OUTPUT}"
+            echo "" >> "${GITHUB_STEP_SUMMARY}"
+            echo "Triggered deploy workflow via workflow_dispatch." >> "${GITHUB_STEP_SUMMARY}"
+          else
+            echo "⚠️ Failed to trigger deploy workflow."
+            echo "method=workflow_dispatch_failed" >> "${GITHUB_OUTPUT}"
+          fi
 
       - name: Report result / 输出结果
         if: always() && steps.upstream.outcome == 'success'
@@ -366,6 +381,9 @@ jobs:
                 case "${DEPLOY_TRIGGER_METHOD}" in
                   git_push_and_deploy_hook)
                     deploy_result="Requested by Git push and Deploy Hook / 已通过 Git push 和 Deploy Hook 请求"
+                    ;;
+                  workflow_dispatch)
+                    deploy_result="Triggered deploy workflow / 已触发部署工作流"
                     ;;
                   *)
                     deploy_result="Requested by Git push / 已通过 Git push 请求"
