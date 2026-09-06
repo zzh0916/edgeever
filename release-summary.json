@@ -1,15 +1,11 @@
 {
-  "version": "1.57.0",
+  "version": "1.58.1",
   "changes": {
     "en-US": [
-      "Add direct note editing gestures on mobile.",
-      "Keep system information accessible in compact desktop layouts.",
-      "Restore one-click Windows installation and silent upgrades; existing installation directories remain unchanged, while fresh installs no longer offer a custom path."
+      "Fix the diagram editor failing to open when creating or viewing mind map and flowchart notes in desktop and production builds."
     ],
     "zh-CN": [
-      "移动端支持通过手势直接进入笔记编辑。",
-      "紧凑桌面布局中保持系统信息入口可用。",
-      "Windows 恢复一键安装和静默升级；现有安装目录保持不变，新安装不再提供自定义目录。"
+      "修复桌面端及生产环境中新建或打开思维导图、流程图笔记时编辑器无法显示的问题。"
     ]
   }
 }
